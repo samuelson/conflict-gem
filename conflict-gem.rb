@@ -20,10 +20,6 @@ def getDeps(name,version)
 	gem_versions.each do |gem_version|
 
 		if gem_version[:number] == version  then
-			#Output for debugging, print for every leaf
-			if gem_version[:dependencies] == [] then
-				p name + " version " + version + " has no dependencies"
-			end
 			#Loop through the depenencies for a given version
 			gem_version[:dependencies].each do |dep|
 				dep_name = dep[0]
