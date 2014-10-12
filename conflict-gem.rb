@@ -1,6 +1,7 @@
 #Query rubygems.org using the "gems" gem
 #find all dependencies and subdependencies for a given gem
 #Requires two arguments package Name and Version, in that order
+#Doesn't detect circular dependencies
 
 require 'rubygems'
 require 'gems'
@@ -10,27 +11,48 @@ $dependencies = Hash.new
 #Get all of the dependenciew for a given gem
 def getDeps(name,version)
 	#Returns an array of hashes one for each version
-	deps = Gems.dependencies [name]
-	#Loop through hash array looking for right version
-	deps.each do |dep|
-		#If it's a > 0 depencency then just use the first one in the array
-		if dep[:number] == version or version == 0 then
-			dep[:dependencies].each do |sub_dep|
+	gem_versions = Gems.dependencies [name]
+	if version == "0" then
+		version = gem_versions[0][:number]
+	end
+#	p "Getting dependencies for " + name + " version " + version
 
-				#If a value exists append to existing key otherwise make a new one
-				if $dependencies[sub_dep[0]] != nil then
-					$dependencies[sub_dep[0]] = $dependencies[sub_dep[0]].push(sub_dep[1])
-				else
-					$dependencies[sub_dep[0]] = Array.new [sub_dep[1]]
-				end
-				#Recurse on the subdependencies
-				getDeps(sub_dep[0],sub_dep[1].split(' ')[1])
+	#Loop through hash array looking for right version
+	gem_versions.each do |gem_version|
+
+		if gem_version[:number] == version  then
+			if gem_version[:dependencies] == [] then
+				p name + " version " + version + " has no dependencies"
 			end
-		end
-		
-		#Don't print out every possible version
-		if version == 0 then 
-			break 
+			#Loop through the depenencies for a given version
+			gem_version[:dependencies].each do |dep|
+				dep_name = dep[0]
+				dep_version = dep[1]
+				exists = false
+					
+				#If a value exists append to existing key otherwise make a new one
+				if $dependencies[dep_name] != nil then
+					#Check if that version is already in the hash
+					$dependencies[dep_name].each do |other_version|
+						if dep_version == other_version then
+							exists = true
+						end
+					end
+				else
+					$dependencies[dep_name] = Array.new [dep_version]
+				end
+				
+				#Only check on versions that haven't been checked yet
+				if exists == false then
+
+					#$dependencies[dep_name] = $dependencies[dep_name].push(dep_version)
+					$dependencies[dep_name].push(dep_version)
+
+					p name + " version " + version  + " depends on " + dep_name + " version " + dep_version
+					#Recurse on the subdependencies using just the version number
+					getDeps(dep_name,dep_version.split(' ')[1])
+				end
+			end
 		end
 	end
 end
