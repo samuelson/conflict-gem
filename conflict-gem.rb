@@ -41,10 +41,10 @@ def getDeps(name,version)
 				end
 				
 				if exists == false then
+					#Add the dependency to the hash
 					$dependencies[dep_name].push(dep_version)
 					#Recurse on the subdependencies using just the version number
-					#If there are two listed, pick the first one
-					getDeps(dep_name,dep_version.split(' ')[1].split(',')[0])
+					getDeps(dep_name,dep_version.split(',')[0].split(' ')[1])
 				end
 			end
 		end
