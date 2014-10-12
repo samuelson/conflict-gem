@@ -15,12 +15,12 @@ def getDeps(name,version)
 	if version == "0" then
 		version = gem_versions[0][:number]
 	end
-#	p "Getting dependencies for " + name + " version " + version
 
 	#Loop through hash array looking for right version
 	gem_versions.each do |gem_version|
 
 		if gem_version[:number] == version  then
+			#Output for debugging, print for every leaf
 			if gem_version[:dependencies] == [] then
 				p name + " version " + version + " has no dependencies"
 			end
@@ -30,27 +30,25 @@ def getDeps(name,version)
 				dep_version = dep[1]
 				exists = false
 					
-				#If a value exists append to existing key otherwise make a new one
+				#If a value exists append to existing key otherwise make a new array
 				if $dependencies[dep_name] != nil then
 					#Check if that version is already in the hash
+					#Only check on versions that haven't been checked yet
+					#Should fix endless recursion on circular dependencies
 					$dependencies[dep_name].each do |other_version|
 						if dep_version == other_version then
 							exists = true
 						end
 					end
 				else
-					$dependencies[dep_name] = Array.new [dep_version]
+					$dependencies[dep_name] = Array.new
 				end
 				
-				#Only check on versions that haven't been checked yet
 				if exists == false then
-
-					#$dependencies[dep_name] = $dependencies[dep_name].push(dep_version)
 					$dependencies[dep_name].push(dep_version)
-
-					p name + " version " + version  + " depends on " + dep_name + " version " + dep_version
 					#Recurse on the subdependencies using just the version number
-					getDeps(dep_name,dep_version.split(' ')[1])
+					#If there are two listed, pick the first one
+					getDeps(dep_name,dep_version.split(' ')[1].split(',')[0])
 				end
 			end
 		end
