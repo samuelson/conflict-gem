@@ -1,8 +1,8 @@
 #!/usr/bin/ruby
 #Query rubygems.org using the "gems" gem
 #find all dependencies and subdependencies for a given gem
-#Requires two arguments package Name and Version, in that order
-#Doesn't detect circular dependencies
+#Takes comma separated pairs of gem,version as arguments
+#Will accept multiple arguments
 
 require 'rubygems'
 require 'gems'
@@ -14,13 +14,20 @@ def getDeps(name,version)
 
   #Add the current gem if the hash key has no value
   if $dependencies[name] == nil then
-    $dependencies[name] = Array.new [version]
+    $dependencies[name] = Array.new ["= " + version]
   end
 
-  #Returns an array of hashes one for each version
+  #Returns an array of hashes one for each possible version for that name
   gem_versions = Gems.dependencies [name]
+
+  #If the version is 0, find the lowest possible version number and use that
   if version == "0" then
     version = gem_versions[0][:number]
+    gem_versions.each do |gem_version|
+      if gem_version[:number] < version then
+        version = gem_version[:number]
+      end
+    end
   end
 
   #Loop through hash array looking for right version
@@ -52,36 +59,21 @@ def getDeps(name,version)
           $dependencies[dep_name].push(dep_version)
           #Recurse on the subdependencies using just the version number
           getDeps(dep_name,dep_version.split(',')[0].split(' ')[1])
+	  #p name + " " + version + " requires " + dep_name + " " + dep_version
         end
       end
     end
   end
 end
 
-def parseDeps(deps_list)
-  if deps_list.length == 1 then 
-    return deps_list[0] 
-  end
-  #Sort list by version number
-  #for each
-  #if >= go to next otherwise stop
-  #if <= stop
-  #otherwise return last record
-end
-
 ARGV.each do |dep|
-	p dep
 	getDeps(dep.split(',')[0],dep.split(',')[1])
 end
 
-if $dependencies == {} then
-  p "No dependencies found"
-else
-  $dependencies.each do |key, value|
-    p key
-    value.each do |version|
-      p version
-    end
+$dependencies.each do |key, value|
+  #p key
+  value.each do |version|
+    p key + " " +  version
   end
 end
 
