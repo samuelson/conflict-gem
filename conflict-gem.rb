@@ -70,10 +70,15 @@ ARGV.each do |dep|
 	getDeps(dep.split(',')[0],dep.split(',')[1])
 end
 
+#Print out in a way that can be easily pasted into the puppet manifest
 $dependencies.each do |key, value|
-  #p key
-  value.each do |version|
-    p key + " " +  version
+  #If there is only one version, print it in the final fromat
+  if value.length == 1 then
+    puts "bootstrap::gem { '" + key + ":                     version => '" +  value[0].split(' ')[1] + "' }"
+  else
+    value.each do |version|
+      puts "bootstrap::gem { '" + key + ":                     version => '" +  version + "' }"
+    end
   end
 end
 
