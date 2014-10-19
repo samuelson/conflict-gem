@@ -3,6 +3,7 @@
 #find all dependencies and subdependencies for a given gem
 #Takes comma separated pairs of gem,version as arguments
 #Will accept multiple arguments
+#Versions can use ">=", "<=", "~>" etc syntax
 
 require 'rubygems'
 require 'gems'
@@ -19,10 +20,10 @@ def getDeps(name,version)
   gem_versions = Gems.dependencies [name]
 
   #If no explicit version is set or a beta version, find a better version
-  if version == ">= 0" || version == "= 0" || version =~ /[[:alpha:]]/ then
+  if version == ">= 0" or version == "= 0" or version =~ /[[:alpha:]]/ then
     gem_versions.each do |gem_version|
-      if gem_version[:number] !~ /[[:alpha:]]/ then
-        if gem_version[:number] < version.split(' ')[1] || version.split(' ')[1] == "0" then
+      if gem_version[:number] !~ /[[:alpha:]]/  then
+        if gem_version[:number] < version.split(' ')[1] or version.split(' ')[1] == "0" then
           version = ">= " + gem_version[:number]
         end
       end
@@ -35,8 +36,6 @@ def getDeps(name,version)
   else #Otherwise append
     $dependencies[name].push(version)
   end
-
-  puts name + version
   
   #Loop through hash array looking for right version
   gem_versions.each do |gem_version|
@@ -58,22 +57,17 @@ def getDeps(name,version)
               exists = true
             end
           end
-        else
-          $dependencies[dep_name] = Array.new
+        #else
+        #  $dependencies[dep_name] = Array.new
         end
 
         if exists == false then
 	  #If it's a comma separated list of deps check one at a time
           if dep_version.include? ',' then
             dep_version.split(',').each do |comma_dep|
-	      #p dep_name + ' version ' + comma_dep
-              #$dependencies[dep_name].push(comma_dep)
               getDeps(dep_name,comma_dep)
             end
-	  else
-            #Add the dependency to the hash
-            #$dependencies[dep_name].push(dep_version)
-            #Check for subdependencies
+	  else #Look for subdependencies
             getDeps(dep_name,dep_version)
 	  end  
         end
@@ -135,7 +129,7 @@ def findVersion(versions)
         return equal_to
       end
     else #All three are present
-      if equal_to <= less_than && equal_to >= greater_than then
+      if equal_to <= less_than and equal_to >= greater_than then
         return equal_to #Conflict-free match
       end
     end
@@ -144,15 +138,10 @@ def findVersion(versions)
 end
 
 ARGV.each do |dep|
-	getDeps(dep.split(',')[0],dep.split(',')[1])
+  getDeps(dep.split(',')[0],dep.split(',')[1])
 end
 
 #Print out in a way that can be easily pasted into the puppet manifest
-#Need to add a way to deal with >= 0 only 
 $dependencies.each do |key, value|
-#  puts "bootstrap::gem { '" + key + ":                     version => '" +  findVersion(value) + "' }"
-  puts key + value.to_s + " best match ->" + findVersion(value)
+  printf "%-55s %-20s %-5s\n", "bootstrap::gem { '" + key + ":" , "version => '" +  findVersion(value) + "'" ,"}"
 end
-
-
-
