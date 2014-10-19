@@ -21,13 +21,16 @@ def getDeps(name,version)
   gem_versions = Gems.dependencies [name]
 
   #If the version is 0, find the lowest possible version number and use that
-  if version == "0" then
-    version = gem_versions[0][:number]
+  if version == "0" || (version.include? 'beta' || 'pre') then
     gem_versions.each do |gem_version|
-      if gem_version[:number] < version then
-        version = gem_version[:number]
+      if gem_version[:number] < version || version == "0" then
+	if !(gem_version[:number].include? 'beta' || 'pre') then
+          version = gem_version[:number]
+	  puts "Gem " + name + " version " + gem_version[:number] + " " + version
+        end
       end
     end
+    $dependencies[name].push(">= " + version)
   end
 
   #Loop through hash array looking for right version
@@ -55,80 +58,84 @@ def getDeps(name,version)
         end
 
         if exists == false then
-          #Add the dependency to the hash
-          $dependencies[dep_name].push(dep_version)
-          #Recurse on the subdependencies using just the version number
-          getDeps(dep_name,dep_version.split(',')[0].split(' ')[1])
-	  #p name + " " + version + " requires " + dep_name + " " + dep_version
+	  #If it's a comma separated list of deps check one at a time
+          if dep_version.include? ',' then
+            dep_version.split(',').each do |comma_dep|
+	      p dep_name + ' version ' + comma_dep
+              $dependencies[dep_name].push(comma_dep)
+              getDeps(dep_name,comma_dep.split(' ')[1])
+            end
+	  else
+            #Add the dependency to the hash
+            $dependencies[dep_name].push(dep_version)
+            #Recurse on the subdependencies using just the version number
+            getDeps(dep_name,dep_version.split(',')[0].split(' ')[1])
+	  end  
         end
       end
     end
   end
 end
 
-def version_finder(versions)
+def findVersion(versions)
   if versions.length == 1 then
     return versions[0].split(' ')[1]
   else
-    #Loop through the versions and put into a hash with 3 entries
+    #Loop through the versions and set three variables
     #The smallest 'Less then' the largest 'Greater than' and the largest 'Equal to'
-    results = Hash.new
+    less_than = nil
+    equal_to = nil
+    greater_than = nil
+
     versions.each do |version|
-      #If there is a comma in the version string treat it as separate versions
-      version.split(',').each do |sub_version|
-        value = sub_version.split(' ')[1]
-        case sub_version.split(' ')[0]
-        when '<=','<'
-          if results['L'] == nil then
-            results['L'] = value
-  	  elsif results['L'] >= value then
-            results['L'] = value
-          end
-          puts "L is " + results['L']
-        when '~>','='
-          if results['E'] == nil then
-            results['E'] = value
-          elsif results['E'] <= value then
-            results['E'] = value
-          end
-	  puts "E is " + results['E']
-        when '>=','>'
-          if results['G'] == nil then
-            results['G'] = value
-          elsif results['G'] <= value then
-            results['G'] = value
-          end
-	  puts "G is " + results['G']
+      value = version.split(' ')[1]
+      case version.split(' ')[0]
+      when '<=','<'
+        if less_than == nil then
+          less_than = value
+  	elsif less_than >= value then
+          less_than = value
+        end
+      when '~>','='
+        if equal_to == nil then
+          equal_to = value
+        elsif equal_to <= value then
+          equal_to = value
+        end
+      when '>=','>'
+        if greater_than == nil then
+          greater_than = value
+        elsif greater_than <= value then
+          greater_than = value
         end
       end
     end
     
-    if results['L'] == nil then
-      if results['G'] == nil then
-        return results['E'] #If only E is present return E
-      elsif results['E'] == nil then
-	return results['G']
+    if less_than == nil then
+      if greater_than == nil then
+        return equal_to #If only E is present return E
+      elsif equal_to == nil then
+	return greater_than
       else #G and E are not nil so compare them
-        if results['E'] >= results['G'] then
-          return results['E']
+        if equal_to >= greater_than then
+          return equal_to
         else
-	  return results['G']
+	  return greater_than
         end
       end
-    elsif results['G'] != nil then #G and L both exist
-      if results['E'] == nil then
-	return results['L']
-      elsif results['E'] <= results['L'] then
-        return results['E']
+    elsif greater_than != nil then #G and L both exist
+      if equal_to == nil then
+	return less_than
+      elsif equal_to <= less_than then
+        return equal_to
       end
     else #All three are present
-      if results['E'] <= results['L'] && results['E'] >= results['G'] then
-        return results['E'] #Conflict-free match
-      else
-        return "Conflict: >=" + results['G'] + " ~>" + results['E'] + " <=" + results['L']
+      if equal_to <= less_than && equal_to >= greater_than then
+        return equal_to #Conflict-free match
       end
     end
   end
+  return "Conflict Found" 
 end
 
 ARGV.each do |dep|
@@ -136,18 +143,10 @@ ARGV.each do |dep|
 end
 
 #Print out in a way that can be easily pasted into the puppet manifest
+#Need to add a way to deal with >= 0 only 
 $dependencies.each do |key, value|
-  #If there is only one version, print it in the final fromat
-#  if value.length == 1 then
-#    puts "bootstrap::gem { '" + key + ":                     version => '" +  value[0].split(' ')[1] + "' }"
-#  else
-#    value.each do |version|
-#      if version.split(' ')[0] == '<=' || '<'
-#      puts "bootstrap::gem { '" + key + ":                     version => '" +  version + "' }"
-#    end
-#  end
-  puts "Finding best match for " + key + " in " + value.to_s
-  puts "Gem: " + key + " version: " + version_finder(value)
+#  puts "bootstrap::gem { '" + key + ":                     version => '" +  findVersion(value) + "' }"
+  puts key + value.to_s + " best match ->" + findVersion(value)
 end
 
 
