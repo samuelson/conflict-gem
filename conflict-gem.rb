@@ -13,34 +13,35 @@ $dependencies = Hash.new
 def getDeps(name,version)
   if !(version.include? ' ') then
     version = "= " + version
-    $dependencies[name] = Array.new [version]
-  end
-
-  #Add the current gem if the hash key has no value
-  if $dependencies[name] == nil then
-    $dependencies[name] = Array.new [version]
   end
 
   #Returns an array of hashes one for each possible version for that name
   gem_versions = Gems.dependencies [name]
 
-  #If the version is 0, find the lowest possible version number and use that
-  if version == ">= 0" || (version.include? 'beta' || 'pre') then
+  #If no explicit version is set or a beta version, find a better version
+  if version == ">= 0" || version == "= 0" || version =~ /[[:alpha:]]/ then
     gem_versions.each do |gem_version|
-      if gem_version[:number] < version || version == "0" then
-	if !(gem_version[:number].include? 'beta' || 'pre') then
-          version = gem_version[:number]
-	  puts "Gem " + name + " version " + gem_version[:number] + " " + version
+      if gem_version[:number] !~ /[[:alpha:]]/ then
+        if gem_version[:number] < version.split(' ')[1] || version.split(' ')[1] == "0" then
+          version = ">= " + gem_version[:number]
         end
       end
     end
-    $dependencies[name].push(">= " + version)
   end
 
+  #Add the current gem if the hash key has no value
+  if $dependencies[name] == nil then
+    $dependencies[name] = Array.new [version]
+  else #Otherwise append
+    $dependencies[name].push(version)
+  end
+
+  puts name + version
+  
   #Loop through hash array looking for right version
   gem_versions.each do |gem_version|
 
-    if (version.include? '=' || '~') && gem_version[:number] == version.split(' ')[1]  then
+    if gem_version[:number] == version.split(' ')[1]  then
       #Loop through the depenencies for a given version
       gem_version[:dependencies].each do |dep|
         dep_name = dep[0]
@@ -65,14 +66,14 @@ def getDeps(name,version)
 	  #If it's a comma separated list of deps check one at a time
           if dep_version.include? ',' then
             dep_version.split(',').each do |comma_dep|
-	      p dep_name + ' version ' + comma_dep
-              $dependencies[dep_name].push(comma_dep)
+	      #p dep_name + ' version ' + comma_dep
+              #$dependencies[dep_name].push(comma_dep)
               getDeps(dep_name,comma_dep)
             end
 	  else
             #Add the dependency to the hash
-            $dependencies[dep_name].push(dep_version)
-            #Recurse on the subdependencies using just the version number
+            #$dependencies[dep_name].push(dep_version)
+            #Check for subdependencies
             getDeps(dep_name,dep_version)
 	  end  
         end
