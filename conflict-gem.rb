@@ -11,17 +11,21 @@ $dependencies = Hash.new
 
 #Get all of the dependenciew for a given gem
 def getDeps(name,version)
+  if !(version.include? ' ') then
+    version = "= " + version
+    $dependencies[name] = Array.new [version]
+  end
 
   #Add the current gem if the hash key has no value
   if $dependencies[name] == nil then
-    $dependencies[name] = Array.new ["= " + version]
+    $dependencies[name] = Array.new [version]
   end
 
   #Returns an array of hashes one for each possible version for that name
   gem_versions = Gems.dependencies [name]
 
   #If the version is 0, find the lowest possible version number and use that
-  if version == "0" || (version.include? 'beta' || 'pre') then
+  if version == ">= 0" || (version.include? 'beta' || 'pre') then
     gem_versions.each do |gem_version|
       if gem_version[:number] < version || version == "0" then
 	if !(gem_version[:number].include? 'beta' || 'pre') then
@@ -36,7 +40,7 @@ def getDeps(name,version)
   #Loop through hash array looking for right version
   gem_versions.each do |gem_version|
 
-    if gem_version[:number] == version  then
+    if (version.include? '=' || '~') && gem_version[:number] == version.split(' ')[1]  then
       #Loop through the depenencies for a given version
       gem_version[:dependencies].each do |dep|
         dep_name = dep[0]
@@ -63,13 +67,13 @@ def getDeps(name,version)
             dep_version.split(',').each do |comma_dep|
 	      p dep_name + ' version ' + comma_dep
               $dependencies[dep_name].push(comma_dep)
-              getDeps(dep_name,comma_dep.split(' ')[1])
+              getDeps(dep_name,comma_dep)
             end
 	  else
             #Add the dependency to the hash
             $dependencies[dep_name].push(dep_version)
             #Recurse on the subdependencies using just the version number
-            getDeps(dep_name,dep_version.split(',')[0].split(' ')[1])
+            getDeps(dep_name,dep_version)
 	  end  
         end
       end
@@ -134,8 +138,8 @@ def findVersion(versions)
         return equal_to #Conflict-free match
       end
     end
+    return "Conflict Found" 
   end
-  return "Conflict Found" 
 end
 
 ARGV.each do |dep|
