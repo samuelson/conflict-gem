@@ -9,6 +9,8 @@ The version string can be 0 for any version, a version number such as 0.1.0, or 
 Currently returns the versions in a format that can be easily pasted into a particular puppet manifest
 used for getting local caches of gems in the puppetlabs learning VM.
 
+NOTE: When using a long list of gems, this can be quite slow because it needs to re-query rubygems.org for increasingly long lists of possible dependencies.
+
 Example Usage
 =============
 
