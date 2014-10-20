@@ -12,6 +12,7 @@ $dependencies = Hash.new
 
 #Get all of the dependenciew for a given gem
 def getDeps(name,version)
+  #If it's just a bare version number assume it should be explicit requirement
   if !(version.include? ' ') then
     version = "= " + version
   end
@@ -23,7 +24,7 @@ def getDeps(name,version)
   if version == ">= 0" or version == "= 0" or version =~ /[[:alpha:]]/ then
     gem_versions.each do |gem_version|
       if gem_version[:number] !~ /[[:alpha:]]/  then
-        if gem_version[:number] < version.split(' ')[1] or version.split(' ')[1] == "0" then
+        if (Gem::Version.new(gem_version[:number]) < Gem::Version.new(version.split(' ')[1])) or version.split(' ')[1] == "0" then
           version = ">= " + gem_version[:number]
         end
       end
@@ -86,37 +87,39 @@ def findVersion(versions)
     equal_to = nil
     greater_than = nil
 
+    #Narrow down the array of versions to the most restrictive
     versions.each do |version|
       value = version.split(' ')[1]
       case version.split(' ')[0]
       when '<=','<'
         if less_than == nil then
           less_than = value
-  	elsif less_than >= value then
+  	elsif Gem::Version.new(less_than) >= Gem::Version.new(value) then
           less_than = value
         end
       when '~>','='
         if equal_to == nil then
           equal_to = value
-        elsif equal_to <= value then
+        elsif Gem::Version.new(equal_to) <= Gem::Version.new(value) then
           equal_to = value
         end
       when '>=','>'
         if greater_than == nil then
           greater_than = value
-        elsif greater_than <= value then
+        elsif Gem::Version.new(greater_than) <= Gem::Version.new(value) then
           greater_than = value
         end
       end
     end
     
+    #Compare the three versions and find the best fit
     if less_than == nil then
       if greater_than == nil then
         return equal_to #If only E is present return E
       elsif equal_to == nil then
 	return greater_than
       else #G and E are not nil so compare them
-        if equal_to >= greater_than then
+        if Gem::Version.new(equal_to) >= Gem::Version.new(greater_than) then
           return equal_to
         else
 	  return greater_than
@@ -125,11 +128,11 @@ def findVersion(versions)
     elsif greater_than != nil then #G and L both exist
       if equal_to == nil then
 	return less_than
-      elsif equal_to <= less_than then
+      elsif Gem::Version.new(equal_to) <= Gem::Version.new(less_than) then
         return equal_to
       end
     else #All three are present
-      if equal_to <= less_than and equal_to >= greater_than then
+      if Gem::Version.new(equal_to) <= Gem::Version.new(less_than) and Gem::Version.new(equal_to) >= Gem::Version.new(greater_than) then
         return equal_to #Conflict-free match
       end
     end
